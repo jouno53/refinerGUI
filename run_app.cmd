@@ -28,6 +28,20 @@ exit /b 1
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 pushd "%~dp0"
 
+echo Starting refinerGUI at %DATE% %TIME% > "%LOG_FILE%"
+echo Preparing R package library. First launch may take several minutes...
+echo Preparing R package library at %DATE% %TIME% >> "%LOG_FILE%"
+"%R_SCRIPT%" -e "renv::restore(prompt = FALSE)" >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  echo ERROR: R package setup failed.
+  echo Check your internet connection and the startup log, then try again.
+  echo Startup log: %LOG_FILE%
+  echo.
+  pause
+  popd
+  exit /b 1
+)
+
 rem If something is already listening, only open it when it responds like refinerGUI.
 netstat -ano | findstr ":%APP_PORT%" | findstr "LISTENING" >nul
 if not errorlevel 1 (
@@ -46,7 +60,7 @@ if not errorlevel 1 (
 )
 
 rem Launch app in a detached process so double-click works without keeping this window open.
-echo Starting refinerGUI at %DATE% %TIME% > "%LOG_FILE%"
+echo Launching refinerGUI at %DATE% %TIME% >> "%LOG_FILE%"
 start "refinerGUI" /min cmd /c ""%R_SCRIPT%" -e "options(shiny.launch.browser = FALSE); shiny::runApp('.', host = '127.0.0.1', port = 7448)" >> "%LOG_FILE%" 2>&1"
 
 set /a tries=0

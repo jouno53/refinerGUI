@@ -50,6 +50,8 @@ Windows users can also use the included launcher:
 .\run_app.cmd
 ```
 
+The first launch restores the R package library from `renv.lock`. That step requires internet access and may take several minutes.
+
 Basic workflow:
 
 1. Choose a packaged refineR sample dataset or upload a CSV.
