@@ -1,3 +1,10 @@
+# refinerGUI 0.1.1
+
+## Launcher dependency restore
+
+- Updated the Windows launcher to restore the `renv` package library before app startup so fresh source downloads can install required R packages automatically.
+- Clarified first-launch dependency restoration behavior in the README.
+
 # refinerGUI 0.1.0
 
 ## Initial public repository baseline

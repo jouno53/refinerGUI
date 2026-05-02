@@ -1,7 +1,7 @@
 Package: refinerGUI
 Type: Shiny
 Title: Shiny Interface for Indirect Reference Interval Estimation with refineR
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("refinerGUI contributors", role = c("aut", "cre"))
     )
