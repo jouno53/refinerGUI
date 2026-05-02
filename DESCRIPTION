@@ -1,0 +1,20 @@
+Package: refinerGUI
+Type: Shiny
+Title: Shiny Interface for Indirect Reference Interval Estimation with refineR
+Version: 0.1.0
+Authors@R: c(
+    person("refinerGUI contributors", role = c("aut", "cre"))
+    )
+Description: Provides a local R Shiny interface for estimating reference
+    intervals from real-world data using the refineR package. The application
+    supports local CSV and packaged sample data intake, documented refineR
+    estimation controls, grouped analysis by sex and age metadata, checkpointed
+    grouped runs, reproducible settings import and export, and local result
+    review.
+License: GPL-3
+Encoding: UTF-8
+Imports:
+    jsonlite,
+    later,
+    refineR,
+    shiny

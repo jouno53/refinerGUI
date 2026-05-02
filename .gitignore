@@ -1,0 +1,78 @@
+# R session history and workspace files
+.Rhistory
+.Rapp.history
+.RData
+.RDataTmp
+.Renviron
+.Renviron.local
+.Rprofile.local
+.Rprofile.user
+
+# User-specific and editor files
+.Ruserdata
+.Rproj.user/
+.vscode/
+*.Rproj
+
+# Local planning, reference, validation, and packaging materials
+AGENTS.md
+roadmap.md
+docs/
+fixtures/
+scripts/
+tests/
+RELEASE.md
+R/ui/UI_CONTRACT_FROZEN.md
+www/README.md
+
+# R build artifacts
+*.Rcheck/
+*.tar.gz
+*.Rbuildignore
+
+# renv local state; keep renv.lock, renv/activate.R, and renv/settings.json tracked
+renv/library/
+renv/staging/
+renv/local/
+renv/cellar/
+renv/lock/
+renv/python/
+renv/sandbox/
+
+# Local data, generated runtime outputs, and packaging artifacts
+data/
+dist/
+logs/
+staging/
+checkpoints/
+outputs/
+exports/
+tmp/
+temp/
+*.log
+*.sqlite
+*.zip
+
+# Local/private input data and serialized run artifacts
+data/private/
+data/raw/
+input/
+inputs/
+uploads/
+*.rds
+*.Rds
+*.qs
+*.feather
+*.parquet
+
+# Local secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# OS noise
+.DS_Store
+Thumbs.db
