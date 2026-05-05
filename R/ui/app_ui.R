@@ -13,9 +13,25 @@ build_compact_field_grid <- function(...) {
   )
 }
 
+build_workflow_steps <- function() {
+  labels <- c("Data + Grouping", "Parameters", "Run", "Results")
+
+  shiny::div(
+    class = "workflow-steps",
+    lapply(seq_along(labels), function(index) {
+      shiny::div(
+        class = "workflow-step",
+        shiny::span(class = "workflow-step-number", index),
+        shiny::span(class = "workflow-step-label", labels[[index]])
+      )
+    })
+  )
+}
+
 build_data_panel <- function() {
   build_panel(
     "Data & Mapping",
+    step_number = 1,
     shiny::tags$p(
       class = "panel-intro",
       "Map the analyte and optional grouping metadata, then confirm validation before running refineR."
@@ -109,8 +125,10 @@ build_data_panel <- function() {
         )
       ),
       shiny::uiOutput("csv_reference_status"),
+      shiny::uiOutput("data_quality_snapshot"),
       shiny::uiOutput("validation_status"),
-      shiny::uiOutput("grouping_status")
+      shiny::uiOutput("grouping_status"),
+      shiny::uiOutput("grouping_preview_ui")
     ),
     build_collapsible_section(
       "Preview Data",
@@ -122,6 +140,7 @@ build_data_panel <- function() {
 build_parameters_panel <- function() {
   build_panel(
     "Parameters",
+    step_number = 2,
     shiny::tags$p(
       class = "panel-intro",
       "Keep the core execution settings visible here and open the fine-tuning drawer only when the analysis needs it."
@@ -130,7 +149,7 @@ build_parameters_panel <- function() {
       shiny::selectInput(
         inputId = "param_model",
         label = shiny::tags$span(
-          "ⓘ Model",
+          "Model",
           title = paste(
             "Transformation model for findRI().",
             "BoxCox: standard one-parameter Box-Cox (fastest).",
@@ -144,7 +163,7 @@ build_parameters_panel <- function() {
       shiny::numericInput(
         inputId = "param_nbootstrap",
         label = shiny::tags$span(
-          "ⓘ Bootstrap iterations",
+          "Bootstrap iterations",
           title = paste(
             "Number of bootstrap repetitions passed to findRI().",
             "0 disables bootstrapping (faster; no confidence intervals).",
@@ -158,7 +177,7 @@ build_parameters_panel <- function() {
       shiny::numericInput(
         inputId = "param_seed",
         label = shiny::tags$span(
-          "ⓘ Seed",
+          "Seed",
           title = "Integer seed for reproducible bootstrap sampling. Only used when Bootstrap iterations > 0."
         ),
         value = 123,
@@ -167,7 +186,7 @@ build_parameters_panel <- function() {
       shiny::textInput(
         inputId = "param_riperc",
         label = shiny::tags$span(
-          "ⓘ RI percentiles",
+          "RI percentiles",
           title = paste(
             "Comma-separated probabilities defining the reference interval bounds.",
             "Must be strictly between 0 and 1, sorted ascending.",
@@ -183,7 +202,7 @@ build_parameters_panel <- function() {
         shiny::numericInput(
           inputId = "param_ciprop",
           label = shiny::tags$span(
-            "ⓘ CI proportion",
+            "CI proportion",
             title = paste(
               "Coverage probability for the bootstrap confidence interval (0 < value < 1).",
               "Requires Bootstrap iterations > 0. Default: 0.95."
@@ -197,7 +216,7 @@ build_parameters_panel <- function() {
         shiny::numericInput(
           inputId = "param_umprop",
           label = shiny::tags$span(
-            "ⓘ UM proportion",
+            "UM proportion",
             title = paste(
               "Coverage probability for the uncertainty margin region (0 < value < 1).",
               "Uncertainty margins do not require bootstrap. Default: 0.90."
@@ -224,7 +243,7 @@ build_parameters_panel <- function() {
         shiny::selectInput(
           inputId = "param_scale",
           label = shiny::tags$span(
-            "ⓘ Scale",
+            "Scale",
             title = paste(
               "Unit scale for reported percentiles.",
               "original: measurement units.",
@@ -244,6 +263,7 @@ build_parameters_panel <- function() {
 build_execution_panel <- function() {
   build_panel(
     "Execution & Reproducibility",
+    step_number = 3,
     shiny::div(
       class = "execution-runway",
       shiny::div(
@@ -253,6 +273,7 @@ build_execution_panel <- function() {
           shiny::tags$h4("Run Control"),
           shiny::uiOutput("run_button_ui")
         ),
+        shiny::uiOutput("workflow_readiness"),
         shiny::uiOutput("execution_status")
       ),
       build_collapsible_section(
@@ -302,15 +323,15 @@ build_execution_panel <- function() {
 
 build_results_display_controls <- function() {
   shiny::tags$div(
-    style = "margin-bottom: 16px;",
-    shiny::tags$h4("Display Controls"),
+    class = "plot-controls",
+    shiny::tags$h4("Plot Controls"),
     shiny::fluidRow(
       shiny::column(
         6,
         shiny::selectInput(
           inputId = "display_point_est",
           label = shiny::tags$span(
-            "ⓘ Point estimate view",
+            "Point estimate view",
             title = paste(
               "Which point estimate to show in the plot and table.",
               "medianBS requires a fit run with Bootstrap iterations > 0."
@@ -322,7 +343,7 @@ build_results_display_controls <- function() {
         shiny::numericInput(
           inputId = "display_nhist",
           label = shiny::tags$span(
-            "ⓘ Histogram bins",
+            "Histogram bins",
             title = "Number of bins in the background histogram (Nhist in plot.RWDRI). Default: 60."
           ),
           value = 60,
@@ -332,7 +353,7 @@ build_results_display_controls <- function() {
         shiny::selectInput(
           inputId = "display_uncertainty_region",
           label = shiny::tags$span(
-            "ⓘ Uncertainty region",
+            "Uncertainty region",
             title = paste(
               "Region drawn around point estimates.",
               "bootstrapCI: bootstrap confidence bands (requires bootstrap fit).",
@@ -345,7 +366,7 @@ build_results_display_controls <- function() {
         shiny::selectInput(
           inputId = "display_col_scheme",
           label = shiny::tags$span(
-            "ⓘ Color scheme",
+            "Color scheme",
             title = "Color scheme for the non-pathological distribution and RI shading. green or blue."
           ),
           choices = character(),
@@ -357,7 +378,7 @@ build_results_display_controls <- function() {
         shiny::checkboxInput(
           inputId = "display_show_margin",
           label = shiny::tags$span(
-            "ⓘ Show margins",
+            "Show margins",
             title = "Show or hide the confidence/uncertainty margin region on the plot (showMargin in plot.RWDRI)."
           ),
           value = TRUE
@@ -365,7 +386,7 @@ build_results_display_controls <- function() {
         shiny::checkboxInput(
           inputId = "display_show_pathol",
           label = shiny::tags$span(
-            "ⓘ Show pathological distribution",
+            "Show pathological distribution",
             title = "Overlay the estimated pathological component on the plot (showPathol in plot.RWDRI)."
           ),
           value = FALSE
@@ -373,7 +394,7 @@ build_results_display_controls <- function() {
         shiny::checkboxInput(
           inputId = "display_show_value",
           label = shiny::tags$span(
-            "ⓘ Show interval values",
+            "Show interval values",
             title = "Display the numeric reference interval values above the plot (showValue in plot.RWDRI)."
           ),
           value = TRUE
@@ -386,6 +407,7 @@ build_results_display_controls <- function() {
 build_results_panel <- function() {
   build_panel(
     "Results & Interpretation",
+    step_number = 4,
     shiny::tags$p(
       class = "panel-intro",
       "Use this workspace to review run status, grouped outputs, the interval table, and the refineR plot without switching between distant cards."
@@ -394,10 +416,6 @@ build_results_panel <- function() {
     shiny::uiOutput("group_results_summary_ui"),
     shiny::uiOutput("selected_group_ui"),
     shiny::uiOutput("results_display_preflight"),
-    build_collapsible_section(
-      "Visualization Controls",
-      build_results_display_controls()
-    ),
     shiny::div(
       class = "results-workspace",
       shiny::tags$h4("Result Details"),
@@ -421,6 +439,7 @@ build_results_panel <- function() {
           "Plot",
           shiny::tags$div(
             style = "padding-top: 12px;",
+            build_results_display_controls(),
             shiny::plotOutput("results_plot", height = "360px")
           )
         )
@@ -445,6 +464,7 @@ build_app_ui <- function() {
         icon_path = "refinerGUI.png"
       ),
       shiny::uiOutput("health_status"),
+      build_workflow_steps(),
       shiny::fluidRow(
         class = "workspace-top-row",
         shiny::column(

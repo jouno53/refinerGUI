@@ -1,3 +1,11 @@
+# refinerGUI 0.1.3
+
+## UI workflow polish
+
+- Added workflow step indicators to the main app header and each primary module.
+- Added compact data quality, grouping, parameter, and run-readiness summaries to make blockers easier to scan.
+- Moved plot display controls into the plot workspace and cleaned up visible label encoding artifacts.
+
 # refinerGUI 0.1.2
 
 ## Age bracket boundary handling

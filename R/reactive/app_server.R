@@ -176,6 +176,112 @@ format_validation_messages <- function(messages) {
   paste(messages, collapse = " ")
 }
 
+compact_message_list <- function(messages) {
+  messages <- as.character(messages)
+  messages <- unique(messages[!is.na(messages) & nzchar(messages)])
+
+  if (length(messages) == 0) {
+    return(NULL)
+  }
+
+  shiny::tags$ul(
+    class = "compact-message-list",
+    lapply(messages, shiny::tags$li)
+  )
+}
+
+build_compact_status <- function(ok, ready_title, blocked_title, summary = NULL, warnings = character(), errors = character()) {
+  status_class <- if (isTRUE(ok)) "status-success" else "status-error"
+  warning_items <- compact_message_list(warnings)
+  error_items <- compact_message_list(errors)
+
+  shiny::tags$div(
+    class = paste("status-compact", status_class),
+    shiny::tags$strong(if (isTRUE(ok)) ready_title else blocked_title),
+    if (!is.null(summary) && nzchar(summary)) shiny::tags$p(summary),
+    if (!is.null(warning_items)) shiny::tagList(
+      shiny::tags$p(shiny::tags$strong("Warnings")),
+      warning_items
+    ),
+    if (!is.null(error_items)) shiny::tagList(
+      shiny::tags$p(shiny::tags$strong("Blocking issues")),
+      error_items
+    )
+  )
+}
+
+build_metric_tile <- function(label, value) {
+  shiny::div(
+    class = "quality-metric",
+    shiny::span(class = "quality-metric-value", format(value, big.mark = ",", scientific = FALSE)),
+    shiny::span(class = "quality-metric-label", label)
+  )
+}
+
+build_grouping_preview_frame <- function(plan) {
+  if (!is.data.frame(plan$groups) || nrow(plan$groups) == 0) {
+    return(data.frame())
+  }
+
+  age_rules <- character()
+  if (is.data.frame(plan$metadata$age_bands) && nrow(plan$metadata$age_bands) > 0) {
+    age_rules <- stats::setNames(
+      format_age_band_rules(plan$metadata$age_bands),
+      plan$metadata$age_bands$label
+    )
+  }
+
+  rule <- rep("", nrow(plan$groups))
+  if ("age_band" %in% names(plan$groups) && length(age_rules) > 0) {
+    rule <- unname(age_rules[as.character(plan$groups$age_band)])
+    rule[is.na(rule)] <- ""
+  }
+
+  data.frame(
+    Group = as.character(plan$groups$group_label),
+    Rule = rule,
+    Rows = as.integer(plan$groups$row_count),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
+build_readiness_state <- function(current_result, preflight, settings, group_plan) {
+  blockers <- character()
+
+  if (!isTRUE(current_result$ready)) {
+    blockers <- c(blockers, current_result$errors)
+  }
+
+  if (!isTRUE(preflight$ok)) {
+    blockers <- c(blockers, preflight$errors)
+  }
+
+  if (!identical(settings$mode, "overall") && !isTRUE(group_plan$ok)) {
+    blockers <- c(blockers, group_plan$errors)
+  }
+
+  blockers <- as.character(blockers)
+  blockers <- unique(blockers[!is.na(blockers) & nzchar(blockers)])
+  ready <- length(blockers) == 0
+
+  list(
+    ready = ready,
+    title = if (ready) "Ready to run" else "Run blocked",
+    summary = if (ready) {
+      if (identical(settings$mode, "overall")) {
+        "Validated data and parameters are ready for a single refineR fit."
+      } else {
+        planned_groups <- if (is.data.frame(group_plan$groups)) nrow(group_plan$groups) else 0L
+        sprintf("Validated data, parameters, and %s planned group(s) are ready.", planned_groups)
+      }
+    } else {
+      "Resolve the blocking items below before starting refineR."
+    },
+    blockers = blockers
+  )
+}
+
 build_preview_table <- function(ingest_result) {
   preview <- ingest_result$preview_data
 
@@ -1601,30 +1707,41 @@ build_app_server <- function() {
       selected_sex_column <- first_scalar_or_default(current_result$selected_sex_column, "none")
       selected_age_column <- first_scalar_or_default(current_result$selected_age_column, "none")
 
-      style <- paste(
-        "padding: 12px; border-radius: 8px; margin-bottom: 12px;",
-        if (current_result$ready) {
-          "background: #e8f6ec; border: 1px solid #6db37c; color: #14361d;"
-        } else {
-          "background: #fff4df; border: 1px solid #d8a64b; color: #5d3b09;"
-        }
-      )
-
-      shiny::tags$div(
-        style = style,
-        shiny::tags$strong(if (current_result$ready) "Validation ready" else "Validation blocked"),
-        shiny::tags$p(sprintf("Source: %s", if (nzchar(source_label)) source_label else "not selected")),
-        shiny::tags$ul(
-          shiny::tags$li(sprintf("Rows loaded: %s", current_result$row_count)),
-          shiny::tags$li(sprintf("Usable analyte rows after NA handling: %s", length(current_result$normalized_values))),
-          shiny::tags$li(sprintf("Numeric analyte columns: %s", if (length(current_result$numeric_candidate_columns) > 0) paste(current_result$numeric_candidate_columns, collapse = ", ") else "none")),
-          shiny::tags$li(sprintf("Selected analyte: %s", selected_column)),
-          shiny::tags$li(sprintf("Selected sex column: %s", selected_sex_column)),
-          shiny::tags$li(sprintf("Selected age column: %s", selected_age_column)),
-          shiny::tags$li(sprintf("Missing values in selected analyte: %s", current_result$missing_count))
+      build_compact_status(
+        ok = current_result$ready,
+        ready_title = "Data validation ready",
+        blocked_title = "Data validation blocked",
+        summary = sprintf(
+          "Source: %s | Analyte: %s | Sex: %s | Age: %s",
+          if (nzchar(source_label)) source_label else "not selected",
+          selected_column,
+          selected_sex_column,
+          selected_age_column
         ),
-        shiny::tags$p(sprintf("Warnings: %s", format_validation_messages(current_result$warnings))),
-        shiny::tags$p(sprintf("Errors: %s", format_validation_messages(current_result$errors)))
+        warnings = current_result$warnings,
+        errors = current_result$errors
+      )
+    })
+
+    output$data_quality_snapshot <- shiny::renderUI({
+      current_result <- ingest_result()
+      plan <- grouping_preflight()
+      settings <- current_grouping_settings()
+      groups_planned <- if (!isTRUE(current_result$ready)) {
+        0L
+      } else if (!identical(settings$mode, "overall") && is.data.frame(plan$groups)) {
+        nrow(plan$groups)
+      } else {
+        1L
+      }
+
+      shiny::div(
+        class = "quality-metrics",
+        build_metric_tile("Rows loaded", current_result$row_count),
+        build_metric_tile("Usable analyte", length(current_result$normalized_values)),
+        build_metric_tile("Missing analyte", current_result$missing_count),
+        build_metric_tile("Metadata excluded", if (!is.null(plan$excluded_rows)) plan$excluded_rows else 0L),
+        build_metric_tile("Groups planned", groups_planned)
       )
     })
 
@@ -1633,57 +1750,72 @@ build_app_server <- function() {
       plan <- grouping_preflight()
       settings <- current_grouping_settings()
 
-      style <- paste(
-        "padding: 12px; border-radius: 8px; margin-bottom: 12px;",
-        if (plan$ok) {
-          "background: #e8f6ec; border: 1px solid #6db37c; color: #14361d;"
-        } else {
-          "background: #fff4df; border: 1px solid #d8a64b; color: #5d3b09;"
-        }
-      )
-
-      group_lines <- if (is.data.frame(plan$groups) && nrow(plan$groups) > 0) {
-        lapply(seq_len(nrow(plan$groups)), function(index) {
-          shiny::tags$li(sprintf("%s: %s row(s)", plan$groups$group_label[[index]], plan$groups$row_count[[index]]))
-        })
-      } else {
-        shiny::tags$li("No groups planned yet.")
-      }
-
-      age_rule_lines <- if (
-        settings$mode %in% c("age", "sex_age") &&
-          is.data.frame(plan$metadata$age_bands) &&
-          nrow(plan$metadata$age_bands) > 0
-      ) {
-        lapply(format_age_band_rules(plan$metadata$age_bands), shiny::tags$li)
-      } else {
-        NULL
-      }
-
       note <- if (identical(settings$mode, "overall")) {
         "Overall-only planning preserves the current single-fit execution path."
       } else if (plan$ok) {
-        "Grouped planning is ready. Multi-group refineR execution can run against the planned strata."
+        sprintf(
+          "Grouped planning is ready: %s row(s) included, %s row(s) excluded.",
+          plan$included_rows,
+          plan$excluded_rows
+        )
       } else {
         "Grouped planning must be valid before grouped refineR execution can start."
       }
 
+      build_compact_status(
+        ok = plan$ok,
+        ready_title = "Grouping plan ready",
+        blocked_title = "Grouping plan blocked",
+        summary = sprintf("Mode: %s | %s", format_grouping_mode(settings$mode), note),
+        warnings = plan$warnings,
+        errors = c(
+          plan$errors,
+          if (!current_result$metadata_ready && identical(settings$mode, "overall")) {
+            sprintf("Unused metadata issues: %s", format_validation_messages(current_result$metadata_errors))
+          }
+        )
+      )
+    })
+
+    output$grouping_preview_ui <- shiny::renderUI({
+      settings <- current_grouping_settings()
+      plan <- grouping_preflight()
+
+      if (identical(settings$mode, "overall") || !isTRUE(plan$ok) || !is.data.frame(plan$groups) || nrow(plan$groups) == 0) {
+        return(NULL)
+      }
+
+      shiny::div(
+        class = "grouping-preview",
+        shiny::tags$h4("Grouping Preview"),
+        shiny::tableOutput("grouping_preview_table")
+      )
+    })
+
+    output$grouping_preview_table <- shiny::renderTable({
+      settings <- current_grouping_settings()
+      plan <- grouping_preflight()
+
+      if (identical(settings$mode, "overall") || !isTRUE(plan$ok)) {
+        return(NULL)
+      }
+
+      build_grouping_preview_frame(plan)
+    }, striped = TRUE, bordered = TRUE, spacing = "s")
+
+    output$workflow_readiness <- shiny::renderUI({
+      readiness <- build_readiness_state(
+        current_result = ingest_result(),
+        preflight = execution_preflight(),
+        settings = current_grouping_settings(),
+        group_plan = grouping_preflight()
+      )
+
       shiny::tags$div(
-        style = style,
-        shiny::tags$strong(if (plan$ok) "Grouping plan ready" else "Grouping plan blocked"),
-        shiny::tags$p(sprintf("Mode: %s", format_grouping_mode(settings$mode))),
-        shiny::tags$p(sprintf("Included rows: %s | Excluded rows: %s", plan$included_rows, plan$excluded_rows)),
-        shiny::tags$ul(group_lines),
-        if (!is.null(age_rule_lines)) shiny::tagList(
-          shiny::tags$p(shiny::tags$strong("Parsed age bands")),
-          shiny::tags$ul(age_rule_lines)
-        ),
-        shiny::tags$p(note),
-        shiny::tags$p(sprintf("Warnings: %s", format_validation_messages(plan$warnings))),
-        shiny::tags$p(sprintf("Errors: %s", format_validation_messages(plan$errors))),
-        if (!current_result$metadata_ready && identical(settings$mode, "overall")) {
-          shiny::tags$p(sprintf("Unused metadata issues: %s", format_validation_messages(current_result$metadata_errors)))
-        }
+        class = paste("readiness-banner", if (readiness$ready) "ready" else "blocked"),
+        shiny::tags$strong(readiness$title),
+        shiny::tags$p(readiness$summary),
+        if (!readiness$ready) compact_message_list(readiness$blockers)
       )
     })
 
@@ -1694,20 +1826,13 @@ build_app_server <- function() {
     output$parameter_preflight_status <- shiny::renderUI({
       preflight <- execution_preflight()
 
-      style <- paste(
-        "padding: 12px; border-radius: 8px; margin-top: 12px;",
-        if (preflight$ok) {
-          "background: #e8f6ec; border: 1px solid #6db37c; color: #14361d;"
-        } else {
-          "background: #fdeeee; border: 1px solid #d37b7b; color: #5a1717;"
-        }
-      )
-
-      shiny::tags$div(
-        style = style,
-        shiny::tags$strong(if (preflight$ok) "Parameter preflight passed" else "Parameter preflight blocked"),
-        shiny::tags$p(sprintf("Warnings: %s", format_validation_messages(preflight$warnings))),
-        shiny::tags$p(sprintf("Errors: %s", format_validation_messages(preflight$errors)))
+      build_compact_status(
+        ok = preflight$ok,
+        ready_title = "Parameter preflight passed",
+        blocked_title = "Parameter preflight blocked",
+        summary = "Core settings are validated before refineR execution.",
+        warnings = preflight$warnings,
+        errors = preflight$errors
       )
     })
 
@@ -1739,8 +1864,7 @@ build_app_server <- function() {
             class = "btn btn-primary",
             disabled = "disabled",
             button_label
-          ),
-          shiny::tags$p("Grouped execution becomes available once the grouped plan is valid.")
+          )
         ))
       }
 
@@ -2045,7 +2169,7 @@ build_app_server <- function() {
         if (!ingest_result()$ready) {
           "Execution is blocked until the data panel reaches a valid ready state."
         } else if (!identical(settings$mode, "overall") && !group_plan$ok) {
-          "Execution is blocked until the Phase 7 grouping plan is valid."
+          "Execution is blocked until the grouping plan is valid."
         } else if (!identical(settings$mode, "overall")) {
           "Validated grouped planning is ready. Click Run refineR Estimation to execute the planned subgroup fits."
         } else if (!preflight$ok) {
