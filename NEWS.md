@@ -1,3 +1,11 @@
+# refinerGUI 0.1.2
+
+## Age bracket boundary handling
+
+- Updated age bracketing so repeated contiguous boundaries assign the boundary value to the earlier bracket.
+- Added parsed age-band rules to the grouping status display so users can see the effective interval logic.
+- Clarified age-band UI guidance for examples such as `0-18`, `18-30`, and `30+`.
+
 # refinerGUI 0.1.1
 
 ## Launcher dependency restore

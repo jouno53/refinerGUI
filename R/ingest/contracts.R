@@ -451,38 +451,50 @@ parse_age_band_text <- function(age_band_text) {
         stop(sprintf("Age band '%s' has a lower bound greater than its upper bound.", token), call. = FALSE)
       }
 
-      return(list(label = token, lower = lower, upper = upper, lower_inclusive = TRUE, upper_inclusive = TRUE))
+      return(list(label = token, lower = lower, upper = upper, lower_inclusive = TRUE, upper_inclusive = TRUE, syntax = "range"))
     }
 
     if (grepl("^[0-9]+(?:\\.[0-9]+)?\\+$", token)) {
       lower <- as.numeric(sub("\\+$", "", token))
-      return(list(label = token, lower = lower, upper = Inf, lower_inclusive = TRUE, upper_inclusive = TRUE))
+      return(list(label = token, lower = lower, upper = Inf, lower_inclusive = TRUE, upper_inclusive = TRUE, syntax = "plus"))
     }
 
     if (grepl("^<=\\s*[0-9]+(?:\\.[0-9]+)?$", token)) {
       upper <- as.numeric(sub("^<=\\s*", "", token))
-      return(list(label = token, lower = -Inf, upper = upper, lower_inclusive = TRUE, upper_inclusive = TRUE))
+      return(list(label = token, lower = -Inf, upper = upper, lower_inclusive = TRUE, upper_inclusive = TRUE, syntax = "operator"))
     }
 
     if (grepl("^<\\s*[0-9]+(?:\\.[0-9]+)?$", token)) {
       upper <- as.numeric(sub("^<\\s*", "", token))
-      return(list(label = token, lower = -Inf, upper = upper, lower_inclusive = TRUE, upper_inclusive = FALSE))
+      return(list(label = token, lower = -Inf, upper = upper, lower_inclusive = TRUE, upper_inclusive = FALSE, syntax = "operator"))
     }
 
     if (grepl("^>=\\s*[0-9]+(?:\\.[0-9]+)?$", token)) {
       lower <- as.numeric(sub("^>=\\s*", "", token))
-      return(list(label = token, lower = lower, upper = Inf, lower_inclusive = TRUE, upper_inclusive = TRUE))
+      return(list(label = token, lower = lower, upper = Inf, lower_inclusive = TRUE, upper_inclusive = TRUE, syntax = "operator"))
     }
 
     if (grepl("^>\\s*[0-9]+(?:\\.[0-9]+)?$", token)) {
       lower <- as.numeric(sub("^>\\s*", "", token))
-      return(list(label = token, lower = lower, upper = Inf, lower_inclusive = FALSE, upper_inclusive = TRUE))
+      return(list(label = token, lower = lower, upper = Inf, lower_inclusive = FALSE, upper_inclusive = TRUE, syntax = "operator"))
     }
 
     stop(sprintf("Unsupported age band syntax: %s", token), call. = FALSE)
   }
 
   parsed <- lapply(tokens, parse_band)
+  if (length(parsed) > 1) {
+    for (index in seq_along(parsed)[-1]) {
+      previous_uppers <- vapply(parsed[seq_len(index - 1)], function(entry) entry$upper, numeric(1))
+      has_shared_lower_boundary <- is.finite(parsed[[index]]$lower) &&
+        any(is.finite(previous_uppers) & previous_uppers == parsed[[index]]$lower)
+
+      if (parsed[[index]]$syntax %in% c("range", "plus") && has_shared_lower_boundary) {
+        parsed[[index]]$lower_inclusive <- FALSE
+      }
+    }
+  }
+
   labels <- vapply(parsed, function(entry) entry$label, character(1))
 
   if (anyDuplicated(labels) > 0) {
@@ -495,9 +507,50 @@ parse_age_band_text <- function(age_band_text) {
     upper = vapply(parsed, function(entry) entry$upper, numeric(1)),
     lower_inclusive = vapply(parsed, function(entry) entry$lower_inclusive, logical(1)),
     upper_inclusive = vapply(parsed, function(entry) entry$upper_inclusive, logical(1)),
+    syntax = vapply(parsed, function(entry) entry$syntax, character(1)),
     stringsAsFactors = FALSE,
     check.names = FALSE
   )
+}
+
+format_age_band_rules <- function(age_bands) {
+  if (!is.data.frame(age_bands) || nrow(age_bands) == 0) {
+    return(character())
+  }
+
+  format_bound <- function(value) {
+    if (is.infinite(value)) {
+      return(if (value < 0) "-Inf" else "Inf")
+    }
+
+    format(value, trim = TRUE, scientific = FALSE)
+  }
+
+  vapply(seq_len(nrow(age_bands)), function(index) {
+    band <- age_bands[index, , drop = FALSE]
+
+    if (is.infinite(band$lower) && band$lower < 0) {
+      operator <- if (isTRUE(band$upper_inclusive)) "<=" else "<"
+      return(sprintf("%s: age %s %s", band$label, operator, format_bound(band$upper)))
+    }
+
+    if (is.infinite(band$upper) && band$upper > 0) {
+      operator <- if (isTRUE(band$lower_inclusive)) ">=" else ">"
+      return(sprintf("%s: age %s %s", band$label, operator, format_bound(band$lower)))
+    }
+
+    lower_operator <- if (isTRUE(band$lower_inclusive)) "<=" else "<"
+    upper_operator <- if (isTRUE(band$upper_inclusive)) "<=" else "<"
+
+    sprintf(
+      "%s: %s %s age %s %s",
+      band$label,
+      format_bound(band$lower),
+      lower_operator,
+      upper_operator,
+      format_bound(band$upper)
+    )
+  }, character(1))
 }
 
 match_age_band <- function(values, age_bands) {
@@ -505,19 +558,18 @@ match_age_band <- function(values, age_bands) {
     return(character())
   }
 
-  match_matrix <- vapply(
-    seq_len(nrow(age_bands)),
-    FUN = function(index) {
+  match_matrix <- do.call(
+    cbind,
+    lapply(seq_len(nrow(age_bands)), function(index) {
       band <- age_bands[index, , drop = FALSE]
       lower_ok <- if (isTRUE(band$lower_inclusive)) values >= band$lower else values > band$lower
       upper_ok <- if (isTRUE(band$upper_inclusive)) values <= band$upper else values < band$upper
       lower_ok & upper_ok
-    },
-    FUN.VALUE = logical(length(values))
+    })
   )
 
   if (is.null(dim(match_matrix))) {
-    match_matrix <- matrix(match_matrix, ncol = 1)
+    match_matrix <- matrix(match_matrix, nrow = length(values))
   }
 
   overlap_rows <- which(rowSums(match_matrix) > 1)

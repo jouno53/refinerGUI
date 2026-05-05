@@ -1650,6 +1650,16 @@ build_app_server <- function() {
         shiny::tags$li("No groups planned yet.")
       }
 
+      age_rule_lines <- if (
+        settings$mode %in% c("age", "sex_age") &&
+          is.data.frame(plan$metadata$age_bands) &&
+          nrow(plan$metadata$age_bands) > 0
+      ) {
+        lapply(format_age_band_rules(plan$metadata$age_bands), shiny::tags$li)
+      } else {
+        NULL
+      }
+
       note <- if (identical(settings$mode, "overall")) {
         "Overall-only planning preserves the current single-fit execution path."
       } else if (plan$ok) {
@@ -1664,6 +1674,10 @@ build_app_server <- function() {
         shiny::tags$p(sprintf("Mode: %s", format_grouping_mode(settings$mode))),
         shiny::tags$p(sprintf("Included rows: %s | Excluded rows: %s", plan$included_rows, plan$excluded_rows)),
         shiny::tags$ul(group_lines),
+        if (!is.null(age_rule_lines)) shiny::tagList(
+          shiny::tags$p(shiny::tags$strong("Parsed age bands")),
+          shiny::tags$ul(age_rule_lines)
+        ),
         shiny::tags$p(note),
         shiny::tags$p(sprintf("Warnings: %s", format_validation_messages(plan$warnings))),
         shiny::tags$p(sprintf("Errors: %s", format_validation_messages(plan$errors))),

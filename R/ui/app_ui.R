@@ -99,9 +99,13 @@ build_data_panel <- function() {
         shiny::textAreaInput(
           inputId = "age_band_text",
           label = "Age bands",
-          placeholder = "0-17\n18-64\n65+",
-          rows = 3,
+          placeholder = "0-18\n18-30\n30+",
+          rows = 4,
           resize = "vertical"
+        ),
+        shiny::tags$p(
+          class = "panel-intro",
+          "Repeated boundaries belong to the earlier band. For example, 0-18 includes age 18, 18-30 includes ages greater than 18 through 30, and 30+ includes ages greater than 30."
         )
       ),
       shiny::uiOutput("csv_reference_status"),
