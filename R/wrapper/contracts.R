@@ -781,6 +781,46 @@ default_execution_config <- function() {
   )
 }
 
+format_refiner_call_summary <- function(config, data_label = "<normalized_values>", n = NULL) {
+  validated_config <- assert_valid_execution_config(config)
+
+  format_value <- function(value) {
+    if (is.character(value)) {
+      return(sprintf('"%s"', value))
+    }
+
+    if (length(value) > 1) {
+      return(sprintf("c(%s)", paste(format(value, trim = TRUE, scientific = FALSE), collapse = ", ")))
+    }
+
+    format(value, trim = TRUE, scientific = FALSE)
+  }
+
+  data_expression <- as.character(data_label[[1]])
+  if (!is.null(n)) {
+    data_expression <- sprintf("%s [n = %s]", data_expression, format_value(as.integer(n)))
+  }
+
+  paste(
+    sprintf(
+      "refineR::findRI(Data = %s, model = %s, NBootstrap = %s, seed = %s)",
+      data_expression,
+      format_value(validated_config$model),
+      format_value(validated_config$NBootstrap),
+      format_value(validated_config$seed)
+    ),
+    sprintf(
+      "refineR::getRI(<fit>, RIperc = %s, CIprop = %s, UMprop = %s, pointEst = %s, Scale = %s)",
+      format_value(validated_config$RIperc),
+      format_value(validated_config$CIprop),
+      format_value(validated_config$UMprop),
+      format_value(validated_config$pointEst),
+      format_value(validated_config$Scale)
+    ),
+    sep = "\n"
+  )
+}
+
 default_display_config <- function(execution_config = default_execution_config()) {
   list(
     RIperc = execution_config$RIperc,

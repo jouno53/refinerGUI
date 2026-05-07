@@ -4,6 +4,8 @@ refinerGUI is a local R Shiny application for estimating reference intervals fro
 
 The app wraps the core refineR workflow in a guided interface for data intake, parameter selection, optional grouped analysis, checkpointing, reproducible settings, and result review.
 
+refinerGUI is not a reimplementation of the refineR algorithm. It is a Shiny wrapper around refineR that validates local inputs, normalizes app configuration, calls refineR through pure wrapper functions, and presents the saved fit results.
+
 ## Purpose
 
 refineR implements indirect reference interval estimation from routine laboratory or similar real-world measurements. refinerGUI makes that workflow easier to run locally by providing:
@@ -60,6 +62,59 @@ Basic workflow:
 4. Review parameter preflight status.
 5. Run refineR estimation.
 6. Inspect the summary, interval table, and plot.
+
+## refineR Wrapper Contract
+
+refinerGUI calls refineR explicitly through the wrapper layer. For a normalized numeric analyte vector, the execution path is equivalent to:
+
+```r
+fit <- refineR::findRI(
+  Data = values,
+  model = config$model,
+  NBootstrap = config$NBootstrap,
+  seed = config$seed
+)
+
+interval <- refineR::getRI(
+  fit,
+  RIperc = config$RIperc,
+  CIprop = config$CIprop,
+  UMprop = config$UMprop,
+  pointEst = config$pointEst,
+  Scale = config$Scale
+)
+```
+
+The default refinerGUI execution configuration is:
+
+```r
+list(
+  model = "BoxCox",
+  NBootstrap = 0,
+  seed = 123,
+  RIperc = c(0.025, 0.975),
+  CIprop = 0.95,
+  UMprop = 0.90,
+  pointEst = "fullDataEst",
+  Scale = "original"
+)
+```
+
+These are explicit refinerGUI defaults. They should not be interpreted as refineR native defaults unless a specific default is verified against the installed refineR package.
+
+## Preprocessing and Grouping
+
+CSV files and packaged refineR sample datasets are loaded locally. The selected analyte column must be numeric. Missing analyte values are removed before refineR execution, and optional sex and age metadata are aligned to the post-NA analyte rows.
+
+Grouped analysis runs one separate refineR fit per planned group. It is not a pooled fit with labels. Group row indices are relative to the normalized analyte vector, not raw CSV row numbers; raw rows are recovered by mapping through the stored usable-row indices. Grouped bootstrap runs derive group-specific seeds from the base seed so each subgroup is reproducible.
+
+Sex grouping requires an explicit raw-value mapping, and age grouping requires explicit age-band definitions. Sex-by-age grouping combines those planned group definitions.
+
+## Display and Checkpoints
+
+Display controls operate on a saved fit. They may change summaries, interval extraction, and plots, but they must not rerun `refineR::findRI()` or mutate the saved fit, interval table, execution config, or execution metadata. This separation is covered by the validation suite.
+
+Checkpoints are intended for grouped CSV runs. Checkpoint compatibility checks include the run signature, config signature, grouping signature, planned groups, and source fingerprint. Incompatible checkpoints are rejected rather than silently reused.
 
 ## Dependency Management
 

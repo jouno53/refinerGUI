@@ -19,8 +19,16 @@ AGENTS.md
 roadmap.md
 docs/
 fixtures/
+!fixtures/
+fixtures/*
+!fixtures/grouped_execution_valid.csv
+!fixtures/grouped_mixed_outcome.csv
 scripts/
-tests/
+tests/*
+!tests/README.md
+!tests/testthat.R
+!tests/testthat/
+!tests/testthat/**
 RELEASE.md
 R/ui/UI_CONTRACT_FROZEN.md
 www/README.md

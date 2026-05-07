@@ -1,3 +1,13 @@
+# refinerGUI 0.2.0
+
+## Validation and CI
+
+- Added a formal mandatory testthat validation suite for the wrapper contract.
+- Added direct refineR equivalence tests for overall and grouped execution paths.
+- Added ingestion, grouping, display/execution separation, and checkpoint compatibility validation.
+- Documented the tested wrapper contract and explicit refinerGUI app defaults.
+- Added a GitHub Actions workflow for the full mandatory validation suite.
+
 # refinerGUI 0.1.3
 
 ## UI workflow polish
