@@ -30,6 +30,7 @@ pushd "%~dp0"
 
 echo Starting refinerGUI at %DATE% %TIME% > "%LOG_FILE%"
 echo Preparing R package library. First launch may take several minutes...
+echo (Startup log: %LOG_FILE%)
 echo Preparing R package library at %DATE% %TIME% >> "%LOG_FILE%"
 "%R_SCRIPT%" -e "renv::restore(prompt = FALSE)" >> "%LOG_FILE%" 2>&1
 if errorlevel 1 (
@@ -69,7 +70,9 @@ set /a tries+=1
 powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 '%APP_URL%'; if ($r.Content -match 'refineR GUI|refineR') { exit 0 } else { exit 2 } } catch { exit 1 }" >nul 2>nul
 if not errorlevel 1 goto app_ready
 
-if !tries! geq 20 goto app_timeout
+if !tries! geq 90 goto app_timeout
+set /a "rem15=!tries! %% 15"
+if !rem15! equ 0 echo Still waiting for refinerGUI to start...
 timeout /t 1 /nobreak >nul
 goto wait_for_app
 
@@ -79,7 +82,7 @@ popd
 exit /b 0
 
 :app_timeout
-echo ERROR: App did not start on port %APP_PORT% within 20 seconds.
+echo ERROR: App did not start on port %APP_PORT% within 90 seconds.
 echo If another app is using this port, close it and try again.
 echo Startup log: %LOG_FILE%
 echo.
