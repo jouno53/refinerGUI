@@ -404,6 +404,118 @@ build_results_display_controls <- function() {
   )
 }
 
+build_plot_resize_observer_script <- function() {
+  shiny::HTML("
+(function() {
+  var plotSizeTimer = null;
+
+  function sendPlotSize(options) {
+    options = options || {};
+
+    if (!window.Shiny || !Shiny.setInputValue) {
+      return;
+    }
+
+    var frame = document.getElementById('results_plot_frame');
+    if (!frame) {
+      return;
+    }
+
+    var rect = frame.getBoundingClientRect();
+    var width = Math.round(rect.width);
+    var height = Math.round(rect.height);
+
+    if (width > 0 && height > 0) {
+      Shiny.setInputValue('results_plot_width_px', width, {priority: 'event'});
+      Shiny.setInputValue('results_plot_height_px', height, {priority: 'event'});
+    }
+  }
+
+  function schedulePlotSizeUpdate() {
+    if (plotSizeTimer !== null) {
+      clearTimeout(plotSizeTimer);
+    }
+
+    plotSizeTimer = setTimeout(function() {
+      plotSizeTimer = null;
+      sendPlotSize();
+    }, 350);
+  }
+
+  function installPlotResizeObserver() {
+    var frame = document.getElementById('results_plot_frame');
+    if (!frame || frame.dataset.resizeObserverAttached === 'true') {
+      sendPlotSize();
+      return;
+    }
+
+    frame.dataset.resizeObserverAttached = 'true';
+
+    if (window.ResizeObserver) {
+      var observer = new ResizeObserver(schedulePlotSizeUpdate);
+      observer.observe(frame);
+    }
+
+    sendPlotSize();
+  }
+
+  function installPlotResizeGrip() {
+    var frame = document.getElementById('results_plot_frame');
+    var grip = document.getElementById('results_plot_resize_grip');
+
+    if (!frame || !grip || grip.dataset.resizeGripAttached === 'true') {
+      return;
+    }
+
+    grip.dataset.resizeGripAttached = 'true';
+
+    function setPlotFrameHeight(height) {
+      var nextHeight = Math.max(300, Math.min(760, Math.round(height)));
+      frame.style.height = nextHeight + 'px';
+      schedulePlotSizeUpdate();
+    }
+
+    function startResize(event) {
+      event.preventDefault();
+      var startY = event.clientY;
+      var startHeight = frame.getBoundingClientRect().height;
+
+      function moveResize(moveEvent) {
+        setPlotFrameHeight(startHeight + moveEvent.clientY - startY);
+      }
+
+      function endResize() {
+        document.removeEventListener('mousemove', moveResize);
+        document.removeEventListener('mouseup', endResize);
+        sendPlotSize();
+      }
+
+      document.addEventListener('mousemove', moveResize);
+      document.addEventListener('mouseup', endResize);
+    }
+
+    grip.addEventListener('mousedown', startResize);
+    grip.addEventListener('keydown', function(event) {
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        var currentHeight = frame.getBoundingClientRect().height;
+        setPlotFrameHeight(currentHeight + (event.key === 'ArrowDown' ? 20 : -20));
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', installPlotResizeObserver);
+  document.addEventListener('DOMContentLoaded', installPlotResizeGrip);
+  document.addEventListener('shiny:connected', installPlotResizeObserver);
+  document.addEventListener('shiny:connected', installPlotResizeGrip);
+  document.addEventListener('shown.bs.tab', sendPlotSize);
+  window.addEventListener('resize', schedulePlotSizeUpdate);
+  setTimeout(installPlotResizeObserver, 500);
+  setTimeout(installPlotResizeGrip, 500);
+})();
+")
+}
+
 build_results_panel <- function() {
   build_panel(
     "Results & Interpretation",
@@ -440,7 +552,19 @@ build_results_panel <- function() {
           shiny::tags$div(
             style = "padding-top: 12px;",
             build_results_display_controls(),
-            shiny::plotOutput("results_plot", height = "360px")
+            shiny::tags$div(
+              id = "results_plot_frame",
+              class = "resizable-plot-frame",
+              shiny::plotOutput("results_plot", width = "100%", height = "100%"),
+              shiny::tags$div(
+                id = "results_plot_resize_grip",
+                class = "plot-resize-grip",
+                title = "Resize plot",
+                `aria-label` = "Resize plot",
+                tabindex = "0",
+                role = "separator"
+              )
+            )
           )
         )
       )
@@ -454,7 +578,8 @@ build_app_ui <- function() {
       shiny::tags$title("refineR GUI"),
       shiny::tags$meta(name = "viewport", content = "width=device-width, initial-scale=1.0"),
       shiny::tags$style(shiny::HTML(inject_theme_css_variables())),
-      shiny::tags$style(shiny::HTML(get_global_styles()))
+      shiny::tags$style(shiny::HTML(get_global_styles())),
+      shiny::tags$script(build_plot_resize_observer_script())
     ),
     shiny::div(
       class = "app-shell",

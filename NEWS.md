@@ -1,3 +1,10 @@
+# refinerGUI 0.2.1
+
+## Plot resizing
+
+- Added a resizable results plot viewport so copied plot images use the displayed aspect ratio.
+- Debounced plot resize updates so Shiny redraws the refineR plot after resizing settles instead of during every intermediate resize frame.
+
 # refinerGUI 0.2.0
 
 ## Validation and CI

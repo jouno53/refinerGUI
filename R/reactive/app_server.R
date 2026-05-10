@@ -2387,6 +2387,26 @@ build_app_server <- function() {
       surface$interval_table
     }, striped = TRUE, bordered = TRUE, spacing = "s")
 
+    results_plot_width <- function() {
+      width <- suppressWarnings(as.numeric(input$results_plot_width_px))
+
+      if (length(width) != 1 || is.na(width) || !is.finite(width) || width <= 0) {
+        return(900)
+      }
+
+      max(320, min(1600, as.integer(width)))
+    }
+
+    results_plot_height <- function() {
+      height <- suppressWarnings(as.numeric(input$results_plot_height_px))
+
+      if (length(height) != 1 || is.na(height) || !is.finite(height) || height <= 0) {
+        return(460)
+      }
+
+      max(300, min(760, as.integer(height)))
+    }
+
     output$results_plot <- shiny::renderPlot({
       result <- latest_success_result()
       group_result <- selected_group_result()
@@ -2405,6 +2425,6 @@ build_app_server <- function() {
       }
 
       build_refiner_plot(result$fit, preflight$config, result$config)
-    }, res = 96, execOnResize = FALSE)
+    }, width = results_plot_width, height = results_plot_height, res = 96, execOnResize = TRUE)
   }
 }
