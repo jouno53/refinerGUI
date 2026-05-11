@@ -32,10 +32,6 @@ build_data_panel <- function() {
   build_panel(
     "Data & Mapping",
     step_number = 1,
-    shiny::tags$p(
-      class = "panel-intro",
-      "Map the analyte and optional grouping metadata, then confirm validation before running refineR."
-    ),
     shiny::div(
       class = "stack-tight",
       shiny::radioButtons(
@@ -119,10 +115,7 @@ build_data_panel <- function() {
           rows = 4,
           resize = "vertical"
         ),
-        shiny::tags$p(
-          class = "panel-intro",
-          "Repeated boundaries belong to the earlier band. For example, 0-18 includes age 18, 18-30 includes ages greater than 18 through 30, and 30+ includes ages greater than 30."
-        )
+        shiny::tags$p(class = "section-note", "Age-band boundaries are assigned to the earlier band.")
       ),
       shiny::uiOutput("csv_reference_status"),
       shiny::uiOutput("data_quality_snapshot"),
@@ -141,10 +134,6 @@ build_parameters_panel <- function() {
   build_panel(
     "Parameters",
     step_number = 2,
-    shiny::tags$p(
-      class = "panel-intro",
-      "Keep the core execution settings visible here and open the fine-tuning drawer only when the analysis needs it."
-    ),
     build_compact_field_grid(
       shiny::selectInput(
         inputId = "param_model",
@@ -262,7 +251,7 @@ build_parameters_panel <- function() {
 
 build_execution_panel <- function() {
   build_panel(
-    "Execution & Reproducibility",
+    "Run",
     step_number = 3,
     shiny::div(
       class = "execution-runway",
@@ -277,19 +266,11 @@ build_execution_panel <- function() {
         shiny::uiOutput("execution_status")
       ),
       build_collapsible_section(
-        "Execution Defaults",
-        shiny::tags$p(
-          class = "section-note",
-          "Baseline defaults work for most use cases. Adjust only when the analysis needs a different execution profile."
-        ),
+        "Current Settings",
         shiny::uiOutput("execution_defaults")
       ),
       build_collapsible_section(
-        "Experiment Settings",
-        shiny::tags$p(
-          class = "section-note",
-          "Export the current validated configuration or import a saved settings JSON file."
-        ),
+        "Settings Import / Export",
         shiny::uiOutput("experiment_settings_export_ui"),
         shiny::fileInput(
           inputId = "import_settings_file",
@@ -302,11 +283,7 @@ build_execution_panel <- function() {
       shiny::conditionalPanel(
         condition = "input.data_source === 'csv' && input.grouping_mode !== 'overall'",
         build_grouped_section(
-          "Grouped Run Management",
-          shiny::tags$p(
-            class = "section-note",
-            "This analysis will run multiple groups separately. Checkpoint to resume interrupted runs."
-          ),
+          "Grouped Checkpointing",
           shiny::textInput(
             inputId = "checkpoint_root",
             label = "Checkpoint folder",
@@ -518,52 +495,44 @@ build_plot_resize_observer_script <- function() {
 
 build_results_panel <- function() {
   build_panel(
-    "Results & Interpretation",
+    "Results",
     step_number = 4,
-    shiny::tags$p(
-      class = "panel-intro",
-      "Use this workspace to review run status, grouped outputs, the interval table, and the refineR plot without switching between distant cards."
-    ),
     shiny::uiOutput("results_status"),
     shiny::uiOutput("group_results_summary_ui"),
     shiny::uiOutput("selected_group_ui"),
     shiny::uiOutput("results_display_preflight"),
     shiny::div(
       class = "results-workspace",
-      shiny::tags$h4("Result Details"),
-      shiny::tabsetPanel(
-        type = "tabs",
-        shiny::tabPanel(
-          "Summary",
-          shiny::tags$div(
-            style = "padding-top: 12px;",
+      shiny::div(
+        class = "results-balance-grid",
+        shiny::div(
+          class = "result-stack",
+          shiny::div(
+            class = "result-block",
+            shiny::tags$h4("Summary"),
             shiny::verbatimTextOutput("results_summary", placeholder = TRUE)
-          )
-        ),
-        shiny::tabPanel(
-          "Interval Table",
-          shiny::tags$div(
-            style = "padding-top: 12px;",
+          ),
+          shiny::div(
+            class = "result-block",
+            shiny::tags$h4("Interval Table"),
             shiny::tableOutput("results_table")
           )
         ),
-        shiny::tabPanel(
-          "Plot",
+        shiny::div(
+          class = "result-block",
+          shiny::tags$h4("Plot"),
+          build_results_display_controls(),
           shiny::tags$div(
-            style = "padding-top: 12px;",
-            build_results_display_controls(),
+            id = "results_plot_frame",
+            class = "resizable-plot-frame",
+            shiny::plotOutput("results_plot", width = "100%", height = "100%"),
             shiny::tags$div(
-              id = "results_plot_frame",
-              class = "resizable-plot-frame",
-              shiny::plotOutput("results_plot", width = "100%", height = "100%"),
-              shiny::tags$div(
-                id = "results_plot_resize_grip",
-                class = "plot-resize-grip",
-                title = "Resize plot",
-                `aria-label` = "Resize plot",
-                tabindex = "0",
-                role = "separator"
-              )
+              id = "results_plot_resize_grip",
+              class = "plot-resize-grip",
+              title = "Resize plot",
+              `aria-label` = "Resize plot",
+              tabindex = "0",
+              role = "separator"
             )
           )
         )
@@ -584,30 +553,25 @@ build_app_ui <- function() {
     shiny::div(
       class = "app-shell",
       build_branded_header(
-        title = "refineR",
-        lede = "Estimate reference intervals from local real-world data with optional grouped analysis, checkpointing, and reproducible settings.",
+        title = "refinerGUI",
+        lede = "Run local refineR reference interval workflows with validated data mapping, reproducible settings, and balanced result review.",
         icon_path = "refinerGUI.png"
       ),
-      shiny::uiOutput("health_status"),
+      shiny::div(class = "health-strip", shiny::uiOutput("health_status")),
       build_workflow_steps(),
-      shiny::fluidRow(
-        class = "workspace-top-row",
-        shiny::column(
-          width = 7,
-          class = "workspace-main-column",
-          build_data_panel()
+      shiny::div(
+        class = "bench-workspace",
+        shiny::div(
+          class = "bench-config-stack",
+          build_data_panel(),
+          build_parameters_panel()
         ),
-        shiny::column(
-          width = 5,
-          class = "workspace-side-column",
-          build_parameters_panel(),
-          build_execution_panel()
+        shiny::div(
+          class = "bench-run-rail",
+          shiny::div(class = "run-panel", build_execution_panel())
         )
       ),
-      shiny::fluidRow(
-        class = "workspace-results-row",
-        shiny::column(12, build_results_panel())
-      )
+      shiny::div(class = "bench-results-row", build_results_panel())
     )
   )
 }

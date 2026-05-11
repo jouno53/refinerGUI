@@ -17,6 +17,10 @@
 # Local planning, reference, validation, and packaging materials
 AGENTS.md
 roadmap.md
+archive/
+PRODUCT.md
+DESIGN.md
+.impeccable/
 docs/
 fixtures/
 !fixtures/

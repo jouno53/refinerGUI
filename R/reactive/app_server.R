@@ -1654,14 +1654,11 @@ build_app_server <- function() {
     }, ignoreInit = TRUE)
 
     output$health_status <- shiny::renderUI({
-      container_style <- paste(
-        "padding: 16px; border-radius: 10px; margin-bottom: 16px;",
-        if (startup_status$ok) {
-          "background: #e8f6ec; border: 1px solid #6db37c; color: #14361d;"
-        } else {
-          "background: #fdeeee; border: 1px solid #d37b7b; color: #5a1717;"
-        }
-      )
+      container_class <- if (startup_status$ok) {
+        "health-status status-success"
+      } else {
+        "health-status status-error"
+      }
 
       package_lines <- vapply(
         names(startup_status$package_checks),
@@ -1678,8 +1675,8 @@ build_app_server <- function() {
       )
 
       shiny::tags$div(
-        style = container_style,
-        shiny::tags$h3(if (startup_status$ok) "Startup Health: OK" else "Startup Health: Attention Required"),
+        class = container_class,
+        shiny::tags$strong(if (startup_status$ok) "Startup Health: OK" else "Startup Health: Attention Required"),
         shiny::tags$p(startup_status$message),
         shiny::tags$ul(
           shiny::tags$li(sprintf("renv activation: %s", if (startup_status$renv_activated) "detected" else "not detected")),

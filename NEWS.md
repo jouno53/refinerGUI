@@ -1,3 +1,12 @@
+# refinerGUI 0.3.0
+
+## Desktop UI redesign
+
+- Redesigned the main Shiny workspace for desktop clinical laboratory use with a denser Data, Parameters, Run, and Results flow.
+- Rebalanced the results review area so summaries, interval tables, plot controls, and plots can be reviewed together without tab switching.
+- Reduced explanatory copy and tightened spacing while preserving existing refineR execution, grouping, checkpoint, settings, and display behavior.
+- Converted startup health rendering from inline styles to reusable semantic status classes.
+
 # refinerGUI 0.2.1
 
 ## Plot resizing

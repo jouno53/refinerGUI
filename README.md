@@ -2,7 +2,7 @@
 
 refinerGUI is a local R Shiny application for estimating reference intervals from real-world data with the [`refineR`](https://cran.r-project.org/package=refineR) package.
 
-The app wraps the core refineR workflow in a guided interface for data intake, parameter selection, optional grouped analysis, checkpointing, reproducible settings, and result review.
+The app wraps the core refineR workflow in a desktop Shiny workspace for data intake, parameter selection, optional grouped analysis, checkpointing, reproducible settings, and result review.
 
 refinerGUI is not a reimplementation of the refineR algorithm. It is a Shiny wrapper around refineR that validates local inputs, normalizes app configuration, calls refineR through pure wrapper functions, and presents the saved fit results.
 
@@ -59,9 +59,9 @@ Basic workflow:
 1. Choose a packaged refineR sample dataset or upload a CSV.
 2. Select the numeric analyte column.
 3. Optionally map sex and age metadata for grouped analysis.
-4. Review parameter preflight status.
-5. Run refineR estimation.
-6. Inspect the summary, interval table, and plot.
+4. Review parameter preflight and run-readiness status.
+5. Run refineR estimation from the Run panel.
+6. Inspect the summary, interval table, plot controls, and plot in the Results workspace.
 
 ## refineR Wrapper Contract
 
